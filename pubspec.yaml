@@ -32,7 +32,7 @@ dependencies:
   provider: ^6.1.0
   intl: ^0.19.0
   image_picker: ^1.0.7
-  # qr_code_scanner: ^1.0.1   ❌ REMOVED - NOT COMPATIBLE WITH WEB
+  flutter_dotenv: ^6.0.1
 
 dev_dependencies:
   flutter_test:
@@ -41,3 +41,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  
+  # 👇 ADD THIS SECTION – Assets (including .env)
+  assets:
+    - .env
