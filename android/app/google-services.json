@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "919145093532",
+    "project_id": "smartfoodcourt-bbcaa",
+    "storage_bucket": "smartfoodcourt-bbcaa.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:919145093532:android:7dee2ce648a350baf5d059",
+        "android_client_info": {
+          "package_name": "com.example.smart_food_court"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDXgMO50Ok5kU4TPS5rZDmNnO4MBVNVYzA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
