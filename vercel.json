@@ -9,5 +9,11 @@
     }
   ],
   "buildCommand": "bash build.sh",
-  "outputDirectory": "build/web"
+  "outputDirectory": "build/web",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/"
+    }
+  ]
 }
