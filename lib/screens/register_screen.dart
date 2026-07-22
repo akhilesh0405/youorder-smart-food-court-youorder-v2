@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_service.dart';
 import 'home_screen.dart';
 
@@ -50,12 +51,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('✅ Registration successful! 🎉')),
       );
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => widget.destination ?? const HomeScreen(),
-        ),
-      );
+      // 👇 JUST POP – AuthWrapper will handle the rest!
+      Navigator.pop(context);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
