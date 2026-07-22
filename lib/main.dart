@@ -21,10 +21,6 @@ void main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
     print("✅ Firebase initialized successfully!");
-    print("✅ Project ID: ${Firebase.app().options.projectId}");
-    print("✅ API Key: ${Firebase.app().options.apiKey}");
-    print("✅ App ID: ${Firebase.app().options.appId}");
-    print("✅ Auth available: ${FirebaseAuth.instance != null}");
   } catch (e) {
     print("❌ Firebase initialization error: $e");
   }
@@ -53,24 +49,80 @@ class MyApp extends StatelessWidget {
               useMaterial3: true,
               textTheme: GoogleFonts.robotoTextTheme(),
             ),
-            home: auth.isAuthenticated ? const HomeScreen() : const LoginScreen(),
-            routes: {
-              '/login': (context) => const LoginScreen(),
-              '/home': (context) => const HomeScreen(),
-              '/restaurant_dashboard': (context) => const RestaurantDashboard(
-                restaurantId: 'panarottis_mauritius',
-              ),
-              '/admin_dashboard': (context) => const AdminDashboard(),
-            },
+            // 👇 Remove `home` and `routes` – use `onGenerateRoute` exclusively
             onGenerateRoute: (settings) {
-              if (settings.name == '/order_tracking') {
-                final orderId = settings.arguments as String;
+              // Get the route from the URL (including hash fragment)
+              String route = settings.name ?? '/';
+              
+              // Remove the # if present
+              if (route.startsWith('/#')) {
+                route = route.substring(2); // Remove /#
+              }
+              
+              print("🔍 Route requested: $route");
+              
+              // --- CUSTOMER APP (Default) ---
+              if (route == '/' || route == '/home' || route.isEmpty) {
+                return MaterialPageRoute(
+                  builder: (context) => auth.isAuthenticated ? const HomeScreen() : const LoginScreen(),
+                );
+              }
+              
+              // --- LOGIN ---
+              if (route == '/login') {
+                return MaterialPageRoute(
+                  builder: (context) => const LoginScreen(),
+                );
+              }
+              
+              // --- RESTAURANT DASHBOARD ---
+              if (route.startsWith('/restaurant/')) {
+                final restaurantId = route.replaceFirst('/restaurant/', '');
+                print("🍕 Restaurant Dashboard: $restaurantId");
+                
+                // If not logged in, show login first, then dashboard
+                if (!auth.isAuthenticated) {
+                  return MaterialPageRoute(
+                    builder: (context) => LoginScreen(
+                      destination: RestaurantDashboard(restaurantId: restaurantId),
+                    ),
+                  );
+                }
+                return MaterialPageRoute(
+                  builder: (context) => RestaurantDashboard(restaurantId: restaurantId),
+                );
+              }
+              
+              // --- ADMIN DASHBOARD ---
+              if (route == '/admin') {
+                print("📊 Admin Dashboard");
+                if (!auth.isAuthenticated) {
+                  return MaterialPageRoute(
+                    builder: (context) => const LoginScreen(destination: AdminDashboard()),
+                  );
+                }
+                return MaterialPageRoute(
+                  builder: (context) => const AdminDashboard(),
+                );
+              }
+              
+              // --- ORDER TRACKING ---
+              if (route.startsWith('/order/')) {
+                final orderId = route.replaceFirst('/order/', '');
+                print("📦 Order Tracking: $orderId");
                 return MaterialPageRoute(
                   builder: (context) => OrderTrackingScreen(orderId: orderId),
                 );
               }
-              return null;
+              
+              // --- FALLBACK: home ---
+              print("⚠️ Unknown route: $route → going to home");
+              return MaterialPageRoute(
+                builder: (context) => auth.isAuthenticated ? const HomeScreen() : const LoginScreen(),
+              );
             },
+            // 👇 Set initial route so that `onGenerateRoute` runs on app start
+            initialRoute: '/',
           );
         },
       ),
