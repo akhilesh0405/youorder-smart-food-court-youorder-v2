@@ -41,7 +41,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  
-  # 👇 ADD THIS SECTION – Assets (including .env)
-  assets:
-    - .env
+  # assets:           👈 COMMENTED OUT
+  #   - .env          👈 COMMENTED OUT
