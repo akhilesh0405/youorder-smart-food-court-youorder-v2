@@ -1,13 +1,13 @@
 #!/bin/bash
-# Install Flutter
+# Install Flutter stable
 git clone https://github.com/flutter/flutter.git -b stable
-export PATH="`pwd`/flutter/bin:$PATH"
+FLUTTER_BIN="`pwd`/flutter/bin/flutter"
 
-# Debug version
-flutter --version
+# Enable web
+$FLUTTER_BIN config --enable-web
 
 # Get dependencies
-flutter pub get
+$FLUTTER_BIN pub get
 
-# Build the web app with HTML renderer
-flutter build web --release --web-renderer=html
+# Build the web app
+$FLUTTER_BIN build web --release

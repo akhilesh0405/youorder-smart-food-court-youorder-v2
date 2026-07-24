@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart'; // Add this for kIsWeb
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -18,13 +19,14 @@ import 'widgets/role_gate.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  // Use kIsWeb for safer initialization
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    print("✅ Firebase initialized successfully!");
+    print("✅ Firebase initialized!");
   } catch (e) {
-    print("❌ Firebase initialization error: $e");
+    print("❌ Firebase error: $e");
   }
   
   runApp(const MyApp());
