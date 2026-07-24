@@ -2,7 +2,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'firebase_options.dart';
 import 'services/auth_service.dart';
 import 'services/firestore_service.dart';
@@ -12,6 +11,9 @@ import 'screens/home_screen.dart';
 import 'screens/restaurant_dashboard.dart';
 import 'screens/admin_dashboard.dart';
 import 'screens/order_tracking_screen.dart';
+import 'screens/splash_screen.dart';
+import 'widgets/app_theme.dart';
+import 'widgets/role_gate.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,8 +30,23 @@ void main() async {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  bool _showSplash = true;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) setState(() => _showSplash = false);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,90 +56,65 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => FirestoreService()),
         ChangeNotifierProvider(create: (_) => CartProvider()),
       ],
-      child: Consumer<AuthService>(
-        builder: (context, auth, _) {
-          return MaterialApp(
-            title: 'YouOrder',
-            debugShowCheckedModeBanner: false,
-            theme: ThemeData(
-              primarySwatch: Colors.blue,
-              useMaterial3: true,
-              textTheme: GoogleFonts.robotoTextTheme(),
+      child: MaterialApp(
+        title: 'YouOrder',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        home: _showSplash ? const SplashScreen() : null,
+        onGenerateRoute: (settings) {
+          if (_showSplash) return null; // Don't route until splash is done
+
+          String route = settings.name ?? '/';
+          if (route.startsWith('/#')) route = route.substring(2);
+          
+          print("🔍 Route requested: $route");
+          
+          // --- CUSTOMER APP ---
+          if (route == '/' || route == '/home' || route.isEmpty) {
+            return MaterialPageRoute(
+              builder: (context) => const RoleGate(
+                allowedRoles: ['customer'],
+                child: HomeScreen(),
+              ),
+            );
+          }
+          
+          // --- ADMIN DASHBOARD ---
+          if (route == '/admin') {
+            return MaterialPageRoute(
+              builder: (context) => const RoleGate(
+                allowedRoles: ['admin'],
+                child: AdminDashboard(),
+              ),
+            );
+          }
+          
+          // --- RESTAURANT DASHBOARDS ---
+          if (route.startsWith('/restaurant/')) {
+            final restaurantId = route.replaceFirst('/restaurant/', '');
+            return MaterialPageRoute(
+              builder: (context) => RoleGate(
+                allowedRoles: const ['restaurant_staff'],
+                restaurantId: restaurantId,
+                child: RestaurantDashboard(restaurantId: restaurantId),
+              ),
+            );
+          }
+
+          // --- ORDER TRACKING ---
+          if (route.startsWith('/order/')) {
+            final orderId = route.replaceFirst('/order/', '');
+            return MaterialPageRoute(
+              builder: (context) => OrderTrackingScreen(orderId: orderId),
+            );
+          }
+          
+          // FALLBACK
+          return MaterialPageRoute(
+            builder: (context) => const RoleGate(
+              allowedRoles: ['customer'],
+              child: HomeScreen(),
             ),
-            // 👇 Remove `home` and `routes` – use `onGenerateRoute` exclusively
-            onGenerateRoute: (settings) {
-              // Get the route from the URL (including hash fragment)
-              String route = settings.name ?? '/';
-              
-              // Remove the # if present
-              if (route.startsWith('/#')) {
-                route = route.substring(2); // Remove /#
-              }
-              
-              print("🔍 Route requested: $route");
-              
-              // --- CUSTOMER APP (Default) ---
-              if (route == '/' || route == '/home' || route.isEmpty) {
-                return MaterialPageRoute(
-                  builder: (context) => auth.isAuthenticated ? const HomeScreen() : const LoginScreen(),
-                );
-              }
-              
-              // --- LOGIN ---
-              if (route == '/login') {
-                return MaterialPageRoute(
-                  builder: (context) => const LoginScreen(),
-                );
-              }
-              
-              // --- RESTAURANT DASHBOARD ---
-              if (route.startsWith('/restaurant/')) {
-                final restaurantId = route.replaceFirst('/restaurant/', '');
-                print("🍕 Restaurant Dashboard: $restaurantId");
-                
-                // If not logged in, show login first, then dashboard
-                if (!auth.isAuthenticated) {
-                  return MaterialPageRoute(
-                    builder: (context) => LoginScreen(
-                      destination: RestaurantDashboard(restaurantId: restaurantId),
-                    ),
-                  );
-                }
-                return MaterialPageRoute(
-                  builder: (context) => RestaurantDashboard(restaurantId: restaurantId),
-                );
-              }
-              
-              // --- ADMIN DASHBOARD ---
-              if (route == '/admin') {
-                print("📊 Admin Dashboard");
-                if (!auth.isAuthenticated) {
-                  return MaterialPageRoute(
-                    builder: (context) => const LoginScreen(destination: AdminDashboard()),
-                  );
-                }
-                return MaterialPageRoute(
-                  builder: (context) => const AdminDashboard(),
-                );
-              }
-              
-              // --- ORDER TRACKING ---
-              if (route.startsWith('/order/')) {
-                final orderId = route.replaceFirst('/order/', '');
-                print("📦 Order Tracking: $orderId");
-                return MaterialPageRoute(
-                  builder: (context) => OrderTrackingScreen(orderId: orderId),
-                );
-              }
-              
-              // --- FALLBACK: home ---
-              print("⚠️ Unknown route: $route → going to home");
-              return MaterialPageRoute(
-                builder: (context) => auth.isAuthenticated ? const HomeScreen() : const LoginScreen(),
-              );
-            },
-            // 👇 Set initial route so that `onGenerateRoute` runs on app start
-            initialRoute: '/',
           );
         },
       ),

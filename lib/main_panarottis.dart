@@ -6,6 +6,9 @@ import 'services/firestore_service.dart';
 import 'services/auth_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/restaurant_dashboard.dart';
+import 'screens/splash_screen.dart';
+import 'widgets/app_theme.dart';
+import 'widgets/role_gate.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,8 +23,23 @@ void main() async {
   runApp(const PanarottisDashboardApp());
 }
 
-class PanarottisDashboardApp extends StatelessWidget {
+class PanarottisDashboardApp extends StatefulWidget {
   const PanarottisDashboardApp({super.key});
+
+  @override
+  State<PanarottisDashboardApp> createState() => _PanarottisDashboardAppState();
+}
+
+class _PanarottisDashboardAppState extends State<PanarottisDashboardApp> {
+  bool _showSplash = true;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) setState(() => _showSplash = false);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,26 +48,26 @@ class PanarottisDashboardApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthService()),
         ChangeNotifierProvider(create: (_) => FirestoreService()),
       ],
-      child: Consumer<AuthService>(
-        builder: (context, auth, _) {
-          // Create the dashboard widget
-          final dashboard = RestaurantDashboard(
-            restaurantId: 'panarottis_mauritius',
-          );
+      child: MaterialApp(
+        title: 'Panarottis Dashboard',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        home: _showSplash 
+            ? const SplashScreen() 
+            : Consumer<AuthService>(
+                builder: (context, auth, _) {
+                  // Create the dashboard widget
+                  final dashboard = RestaurantDashboard(
+                    restaurantId: 'panarottis_mauritius',
+                  );
 
-          return MaterialApp(
-            title: 'Panarottis Dashboard',
-            debugShowCheckedModeBanner: false,
-            theme: ThemeData(
-              primarySwatch: Colors.blue,
-              useMaterial3: true,
-            ),
-            // 👇 Show LoginScreen if not authenticated, otherwise show dashboard
-            home: auth.isAuthenticated
-                ? dashboard
-                : LoginScreen(destination: dashboard),
-          );
-        },
+                  return RoleGate(
+                    allowedRoles: const ['restaurant_staff'],
+                    restaurantId: 'panarottis_mauritius',
+                    child: dashboard,
+                  );
+                },
+              ),
       ),
     );
   }

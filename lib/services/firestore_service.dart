@@ -71,12 +71,19 @@ class FirestoreService extends ChangeNotifier {
     return _firestore.collection('orders').orderBy('timestamp', descending: true).snapshots();
   }
 
-  // ---- Get Orders for a Specific Restaurant (for Restaurant Dashboard) ----
+  // ---- Get Orders for a Specific User (Simplified to avoid Index Error) ----
+  Stream<QuerySnapshot> getUserOrders(String userId) {
+    return _firestore
+        .collection('orders')
+        .where('userId', isEqualTo: userId)
+        .snapshots();
+  }
+
+  // ---- Get Orders for a Specific Restaurant (Simplified to avoid Index Error) ----
   Stream<QuerySnapshot> getRestaurantOrders(String restaurantId) {
     return _firestore
         .collection('orders')
         .where('restaurantId', isEqualTo: restaurantId)
-        .orderBy('timestamp', descending: true)
         .snapshots();
   }
 }

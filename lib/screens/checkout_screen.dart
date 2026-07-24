@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/cart_provider.dart';
 import '../services/firestore_service.dart';
 import '../services/auth_service.dart';
+import '../widgets/app_theme.dart';
 import 'order_tracking_screen.dart';
 
 class CheckoutScreen extends StatefulWidget {
@@ -24,6 +25,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         const SnackBar(
           content: Text('Please enter a table number.'),
           backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
         ),
       );
       return;
@@ -48,8 +50,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       };
 
       final orderId = await firestore.placeOrder(orderData);
-      print('✅ Order placed with ID: $orderId');
-
       cart.clearCart();
 
       if (mounted) {
@@ -65,7 +65,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error placing order: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppTheme.errorColor,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
@@ -81,193 +82,221 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final cart = Provider.of<CartProvider>(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Checkout'),
-        backgroundColor: Colors.blue,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Order Type Selection
-            const Text(
-              'Order Type',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      backgroundColor: Colors.white,
+      body: Column(
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
+            decoration: const BoxDecoration(
+              color: AppTheme.primaryColor,
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(30),
+                bottomRight: Radius.circular(30),
+              ),
             ),
-            const SizedBox(height: 8),
-            Row(
+            child: Row(
               children: [
-                Expanded(
-                  child: Card(
-                    color: _orderType == 'Dine-in'
-                        ? Colors.blue.withOpacity(0.1)
-                        : null,
-                    child: ListTile(
-                      title: const Text('Dine-in'),
-                      leading: Radio(
-                        value: 'Dine-in',
-                        groupValue: _orderType,
-                        onChanged: (value) {
-                          setState(() => _orderType = value!);
-                        },
-                      ),
-                      onTap: () => setState(() => _orderType = 'Dine-in'),
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                const Expanded(
+                  child: Text(
+                    'Checkout',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Card(
-                    color: _orderType == 'Takeaway'
-                        ? Colors.blue.withOpacity(0.1)
-                        : null,
-                    child: ListTile(
-                      title: const Text('Takeaway'),
-                      leading: Radio(
-                        value: 'Takeaway',
-                        groupValue: _orderType,
-                        onChanged: (value) {
-                          setState(() => _orderType = value!);
-                        },
-                      ),
-                      onTap: () => setState(() => _orderType = 'Takeaway'),
-                    ),
-                  ),
-                ),
+                const SizedBox(width: 48), // Spacer for centering
               ],
             ),
-            const SizedBox(height: 20),
-
-            // Table Number (only for Dine-in)
-            if (_orderType == 'Dine-in') ...[
-              const Text(
-                'Table Number',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _tableController,
-                decoration: const InputDecoration(
-                  labelText: 'Enter table number (e.g., A12)',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.table_restaurant),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Tip: Enter the table number printed on your table.',
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-              ),
-            ],
-
-            if (_orderType == 'Takeaway') ...[
-              const Card(
-                color: Colors.green,
-                child: Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Row(
+          ),
+          
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSectionLabel('Order Type'),
+                  const SizedBox(height: 12),
+                  Row(
                     children: [
-                      Icon(Icons.takeout_dining, color: Colors.white),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'You will pick up your order from the counter.',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      ),
+                      _buildOrderTypeButton('Dine-in', Icons.chair_alt_rounded),
+                      const SizedBox(width: 16),
+                      _buildOrderTypeButton('Takeaway', Icons.shopping_bag_outlined),
                     ],
                   ),
-                ),
-              ),
-            ],
+                  const SizedBox(height: 30),
 
-            const SizedBox(height: 20),
+                  if (_orderType == 'Dine-in') ...[
+                    _buildSectionLabel('Table Number'),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _tableController,
+                      decoration: const InputDecoration(
+                        hintText: 'T-07',
+                      ),
+                    ),
+                    const SizedBox(height: 30),
+                  ],
 
-            // Order Summary
-            const Text(
-              'Order Summary',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Column(
-                    children: [
-                      Expanded(
-                        child: ListView.builder(
-                          itemCount: cart.items.length,
-                          itemBuilder: (context, index) {
-                            final item = cart.items[index];
-                            return ListTile(
-                              title: Text(item.menuItem.name),
-                              subtitle: Text(
-                                'Rs ${item.menuItem.price.toStringAsFixed(2)} x ${item.quantity}',
+                  _buildSectionLabel('Order Summary'),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8F9FA),
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: Column(
+                      children: [
+                        ...cart.items.map((item) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12.0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                '${item.quantity}× ${item.menuItem.name}',
+                                style: const TextStyle(fontWeight: FontWeight.w500, color: AppTheme.secondaryColor),
                               ),
-                              trailing: Text(
+                              Text(
                                 'Rs ${item.totalPrice.toStringAsFixed(2)}',
-                                style: const TextStyle(fontWeight: FontWeight.bold),
+                                style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.secondaryColor),
                               ),
-                            );
-                          },
-                        ),
-                      ),
-                      const Divider(thickness: 2),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              'Total:',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
-                              'Rs ${cart.totalAmount.toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                            ],
+                          ),
+                        )),
+                        const Divider(height: 32),
+                        _buildPriceRow('Subtotal', 'Rs ${cart.totalAmount.toStringAsFixed(2)}', isTotal: false),
+                        _buildPriceRow('Service Fee', 'Rs 15.00', isTotal: false),
+                        const SizedBox(height: 8),
+                        _buildPriceRow('Total', 'Rs ${(cart.totalAmount + 15).toStringAsFixed(2)}', isTotal: true),
+                      ],
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 30),
+
+                  _buildSectionLabel('Payment Method'),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey[200]!),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.payments_outlined, color: AppTheme.primaryColor),
+                        const SizedBox(width: 16),
+                        const Text('Pay at Counter', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const Spacer(),
+                        const Icon(Icons.check_circle_rounded, color: AppTheme.primaryColor),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                ],
               ),
             ),
-
-            const SizedBox(height: 16),
-
-            // Place Order Button
-            SizedBox(
+          ),
+          
+          // Bottom CTA
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 30),
+            child: SizedBox(
               width: double.infinity,
+              height: 65,
               child: ElevatedButton(
                 onPressed: _isPlacingOrder ? null : () => _placeOrder(context, cart),
                 style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  backgroundColor: Colors.green,
+                  backgroundColor: const Color(0xFF2E7D32),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                 ),
                 child: _isPlacingOrder
                     ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text(
-                        'Place Order',
-                        style: TextStyle(fontSize: 20, color: Colors.white),
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.check_circle_outline_rounded, size: 22),
+                          const SizedBox(width: 10),
+                          Text('Place Order - Rs ${(cart.totalAmount + 15).toStringAsFixed(2)}'),
+                        ],
                       ),
               ),
             ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionLabel(String label) {
+    return Text(
+      label,
+      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.secondaryColor),
+    );
+  }
+
+  Widget _buildOrderTypeButton(String type, IconData icon) {
+    final isSelected = _orderType == type;
+    return Expanded(
+      child: InkWell(
+        onTap: () => setState(() => _orderType = type),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.white : Colors.white,
+            border: Border.all(color: isSelected ? AppTheme.primaryColor : Colors.grey[200]!, width: 2),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: isSelected ? [BoxShadow(color: AppTheme.primaryColor.withOpacity(0.1), blurRadius: 10)] : null,
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: isSelected ? AppTheme.primaryColor : Colors.grey[400]),
+              const SizedBox(height: 8),
+              Text(
+                type,
+                style: TextStyle(
+                  color: isSelected ? AppTheme.primaryColor : Colors.grey[400],
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildPriceRow(String label, String value, {required bool isTotal}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: isTotal ? 18 : 14,
+              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+              color: isTotal ? AppTheme.secondaryColor : Colors.grey[500],
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: isTotal ? 20 : 14,
+              fontWeight: isTotal ? FontWeight.bold : FontWeight.bold,
+              color: isTotal ? AppTheme.secondaryColor : AppTheme.secondaryColor,
+            ),
+          ),
+        ],
       ),
     );
   }

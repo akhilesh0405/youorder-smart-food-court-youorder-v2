@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/firestore_service.dart';
 import '../services/auth_service.dart';
+import '../widgets/app_theme.dart';
 
 class RestaurantDashboard extends StatefulWidget {
   final String restaurantId;
@@ -27,16 +28,10 @@ class _RestaurantDashboardState extends State<RestaurantDashboard> {
       final firestore = Provider.of<FirestoreService>(context, listen: false);
       final restaurant = await firestore.getRestaurantById(widget.restaurantId);
       if (mounted) {
-        setState(() {
-          _restaurantName = restaurant?.name ?? widget.restaurantId;
-        });
+        setState(() => _restaurantName = restaurant?.name ?? widget.restaurantId);
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _restaurantName = widget.restaurantId;
-        });
-      }
+      if (mounted) setState(() => _restaurantName = widget.restaurantId);
     }
   }
 
@@ -45,443 +40,221 @@ class _RestaurantDashboardState extends State<RestaurantDashboard> {
     final firestore = Provider.of<FirestoreService>(context);
     final auth = Provider.of<AuthService>(context);
 
-    // Check if user is authenticated
-    if (!auth.isAuthenticated) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Restaurant Dashboard'),
-          backgroundColor: Colors.blue,
-        ),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.lock_outline, size: 80, color: Colors.orange),
-              const SizedBox(height: 16),
-              const Text(
-                'Please Login First',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'You need to be logged in to view the dashboard.',
-                style: TextStyle(fontSize: 16, color: Colors.grey),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pushReplacementNamed(context, '/login');
-                },
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                ),
-                child: const Text('Go to Login'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
     return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: Text('$_restaurantName Dashboard'),
-        backgroundColor: Colors.blue,
+        title: Text('$_restaurantName Panel'),
+        backgroundColor: Colors.white,
         actions: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            margin: const EdgeInsets.only(right: 16),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              'ID: ${widget.restaurantId}',
-              style: const TextStyle(color: Colors.white, fontSize: 12),
-            ),
+          IconButton(
+            icon: const Icon(Icons.logout_rounded, color: AppTheme.errorColor),
+            onPressed: () => auth.signOut(),
           ),
+          const SizedBox(width: 8),
         ],
       ),
-      body: Column(
-        children: [
-          // Stats cards
-          StreamBuilder<QuerySnapshot>(
-            stream: firestore.getRestaurantOrders(widget.restaurantId),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: LinearProgressIndicator(),
-                );
-              }
-              if (snapshot.hasError) {
-                return Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Card(
-                    color: Colors.red.withOpacity(0.1),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12.0),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.error_outline, color: Colors.red),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'Error loading orders: ${snapshot.error}',
-                              style: const TextStyle(color: Colors.red),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              }
-              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                return Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(12.0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          Icon(Icons.info_outline, color: Colors.blue),
-                          SizedBox(width: 12),
-                          Text('No orders yet. Orders will appear here in real-time.'),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              }
+      body: StreamBuilder<QuerySnapshot>(
+        stream: firestore.getRestaurantOrders(widget.restaurantId),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          
+          final orders = snapshot.data?.docs ?? [];
+          
+          // Sort in memory to avoid Firebase Index requirements
+          final sortedOrders = List<QueryDocumentSnapshot>.from(orders);
+          sortedOrders.sort((a, b) {
+            final t1 = (a.data() as Map<String, dynamic>)['timestamp'] as Timestamp?;
+            final t2 = (b.data() as Map<String, dynamic>)['timestamp'] as Timestamp?;
+            if (t1 == null) return 1;
+            if (t2 == null) return -1;
+            return t2.compareTo(t1); // Descending
+          });
 
-              final orders = snapshot.data!.docs;
-              final pending = orders.where((doc) => doc['status'] == 'pending').length;
-              final accepted = orders.where((doc) => doc['status'] == 'accepted').length;
-              final preparing = orders.where((doc) => doc['status'] == 'preparing').length;
-              final ready = orders.where((doc) => doc['status'] == 'ready').length;
+          final pending = sortedOrders.where((doc) => doc['status'] == 'pending').length;
+          final active = sortedOrders.where((doc) => ['accepted', 'preparing'].contains(doc['status'])).length;
+          final ready = sortedOrders.where((doc) => doc['status'] == 'ready').length;
 
-              return Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
+          return Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Summary Row
+                Row(
                   children: [
-                    Expanded(child: _StatCard('Pending', pending.toString(), Colors.orange)),
-                    const SizedBox(width: 8),
-                    Expanded(child: _StatCard('Accepted', accepted.toString(), Colors.blue)),
-                    const SizedBox(width: 8),
-                    Expanded(child: _StatCard('Preparing', preparing.toString(), Colors.purple)),
-                    const SizedBox(width: 8),
-                    Expanded(child: _StatCard('Ready', ready.toString(), Colors.green)),
+                    Expanded(child: _SummaryCard('New Orders', '$pending', Colors.orange, Icons.new_releases_rounded)),
+                    const SizedBox(width: 20),
+                    Expanded(child: _SummaryCard('In Progress', '$active', Colors.blue, Icons.restaurant_rounded)),
+                    const SizedBox(width: 20),
+                    Expanded(child: _SummaryCard('Ready', '$ready', Colors.green, Icons.check_circle_rounded)),
                   ],
                 ),
-              );
-            },
-          ),
-
-          // Orders List
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: firestore.getRestaurantOrders(widget.restaurantId),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                        const SizedBox(height: 16),
-                        Text('Error: ${snapshot.error}'),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: () {
-                            setState(() {});
+                const SizedBox(height: 32),
+                
+                Text(
+                  'Order Queue',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 22),
+                ),
+                const SizedBox(height: 16),
+                
+                Expanded(
+                  child: sortedOrders.isEmpty
+                      ? const Center(child: Text('No active orders'))
+                      : ListView.builder(
+                          itemCount: sortedOrders.length,
+                          itemBuilder: (context, index) {
+                            final doc = sortedOrders[index];
+                            final data = doc.data() as Map<String, dynamic>;
+                            return _OrderListItem(orderId: doc.id, data: data, onUpdate: (status) => _updateStatus(context, doc.id, status));
                           },
-                          child: const Text('Retry'),
                         ),
-                      ],
-                    ),
-                  );
-                }
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.receipt_long, size: 64, color: Colors.grey),
-                        SizedBox(height: 16),
-                        Text(
-                          'No orders yet',
-                          style: TextStyle(fontSize: 18, color: Colors.grey),
-                        ),
-                        Text(
-                          'Orders will appear here in real-time.',
-                          style: TextStyle(fontSize: 14, color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                final docs = snapshot.data!.docs;
-
-                return RefreshIndicator(
-                  onRefresh: () async {
-                    setState(() {});
-                  },
-                  child: ListView.builder(
-                    itemCount: docs.length,
-                    itemBuilder: (context, index) {
-                      final doc = docs[index];
-                      final data = doc.data() as Map<String, dynamic>;
-                      final status = data['status'] ?? 'pending';
-                      final table = data['tableNumber'] ?? 'Takeaway';
-                      final items = data['items'] as List? ?? [];
-                      final total = data['totalPrice'] ?? 0.0;
-                      final timestamp = data['timestamp'] as Timestamp?;
-
-                      return Card(
-                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        child: Padding(
-                          padding: const EdgeInsets.all(12.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.table_restaurant, size: 16),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        'Table $table',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: _getStatusColor(status),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Text(
-                                      status.toUpperCase(),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                items.map((i) => i['name']).join(', '),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'Rs ${total.toStringAsFixed(2)}',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.blue,
-                                    ),
-                                  ),
-                                  if (timestamp != null)
-                                    Text(
-                                      _formatTime(timestamp.toDate()),
-                                      style: const TextStyle(fontSize: 12, color: Colors.grey),
-                                    ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              Wrap(
-                                spacing: 8,
-                                children: [
-                                  _StatusButton(
-                                    label: 'Accept',
-                                    status: 'accepted',
-                                    currentStatus: status,
-                                    onPressed: () => _updateStatus(context, doc.id, 'accepted'),
-                                    color: Colors.blue,
-                                  ),
-                                  _StatusButton(
-                                    label: 'Prepare',
-                                    status: 'preparing',
-                                    currentStatus: status,
-                                    onPressed: () => _updateStatus(context, doc.id, 'preparing'),
-                                    color: Colors.purple,
-                                  ),
-                                  _StatusButton(
-                                    label: 'Ready',
-                                    status: 'ready',
-                                    currentStatus: status,
-                                    onPressed: () => _updateStatus(context, doc.id, 'ready'),
-                                    color: Colors.green,
-                                  ),
-                                  _StatusButton(
-                                    label: 'Complete',
-                                    status: 'completed',
-                                    currentStatus: status,
-                                    onPressed: () => _updateStatus(context, doc.id, 'completed'),
-                                    color: Colors.grey,
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                );
-              },
+                ),
+              ],
             ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
 
   void _updateStatus(BuildContext context, String orderId, String newStatus) async {
-    try {
-      final firestore = Provider.of<FirestoreService>(context, listen: false);
-      await firestore.updateOrderStatus(orderId, newStatus);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✅ Order status updated to $newStatus'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ Error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+    final firestore = Provider.of<FirestoreService>(context, listen: false);
+    await firestore.updateOrderStatus(orderId, newStatus);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Order $newStatus'), backgroundColor: Colors.green, behavior: SnackBarBehavior.floating),
+      );
     }
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'pending':
-        return Colors.orange;
-      case 'accepted':
-        return Colors.blue;
-      case 'preparing':
-        return Colors.purple;
-      case 'ready':
-        return Colors.green;
-      case 'completed':
-        return Colors.grey;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  String _formatTime(DateTime time) {
-    final now = DateTime.now();
-    if (now.difference(time).inMinutes < 1) return 'Just now';
-    if (now.difference(time).inHours < 1) return '${now.difference(time).inMinutes}m ago';
-    return '${now.difference(time).inHours}h ago';
   }
 }
 
-class _StatCard extends StatelessWidget {
+class _SummaryCard extends StatelessWidget {
   final String label;
   final String value;
   final Color color;
+  final IconData icon;
 
-  const _StatCard(this.label, this.value, this.color);
+  const _SummaryCard(this.label, this.value, this.color, this.icon);
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: color.withOpacity(0.1),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          children: [
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-            Text(
-              label,
-              style: TextStyle(color: Colors.grey[600], fontSize: 12),
-            ),
-          ],
-        ),
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: color.withOpacity(0.1), width: 2),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 30),
+          const SizedBox(height: 12),
+          Text(value, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: color)),
+          Text(label, style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w500)),
+        ],
       ),
     );
   }
 }
 
-class _StatusButton extends StatelessWidget {
-  final String label;
-  final String status;
-  final String currentStatus;
-  final VoidCallback onPressed;
-  final Color color;
+class _OrderListItem extends StatelessWidget {
+  final String orderId;
+  final Map<String, dynamic> data;
+  final Function(String) onUpdate;
 
-  const _StatusButton({
-    required this.label,
-    required this.status,
-    required this.currentStatus,
-    required this.onPressed,
-    required this.color,
-  });
+  const _OrderListItem({required this.orderId, required this.data, required this.onUpdate});
 
   @override
   Widget build(BuildContext context) {
-    final statusOrder = ['pending', 'accepted', 'preparing', 'ready', 'completed'];
-    final currentIndex = statusOrder.indexOf(currentStatus);
-    final targetIndex = statusOrder.indexOf(status);
+    final status = data['status'] ?? 'pending';
+    final items = data['items'] as List? ?? [];
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text('Order #${orderId.substring(0, 5).toUpperCase()}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    const SizedBox(width: 12),
+                    _StatusBadge(status),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(items.map((i) => "${i['quantity']}x ${i['name']}").join(', '), style: TextStyle(color: Colors.grey[600], fontSize: 14)),
+                const SizedBox(height: 4),
+                Text('Table: ${data['tableNumber']}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: AppTheme.primaryColor)),
+              ],
+            ),
+          ),
+          Wrap(
+            spacing: 8,
+            children: [
+              if (status == 'pending') 
+                _ActionButton('Accept', () => onUpdate('accepted'), Colors.blue),
+              if (status == 'accepted') 
+                _ActionButton('Prepare', () => onUpdate('preparing'), Colors.orange),
+              if (status == 'preparing') 
+                _ActionButton('Ready', () => onUpdate('ready'), Colors.green),
+              if (status == 'ready') 
+                _ActionButton('Complete', () => onUpdate('completed'), Colors.grey),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-    // ✅ Enable ONLY if target is EXACTLY the next step
-    final isEnabled = (targetIndex == currentIndex + 1);
-    final isActive = (currentStatus == status);
-    final isPast = (targetIndex < currentIndex);
+class _StatusBadge extends StatelessWidget {
+  final String status;
+  const _StatusBadge(this.status);
 
+  @override
+  Widget build(BuildContext context) {
+    Color color = Colors.grey;
+    if (status == 'pending') color = Colors.orange;
+    if (status == 'preparing') color = Colors.blue;
+    if (status == 'ready') color = Colors.green;
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+      child: Text(status.toUpperCase(), style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold)),
+    );
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  final Color color;
+
+  const _ActionButton(this.label, this.onTap, this.color);
+
+  @override
+  Widget build(BuildContext context) {
     return ElevatedButton(
-      onPressed: (isActive || !isEnabled || isPast) ? null : onPressed,
+      onPressed: onTap,
       style: ElevatedButton.styleFrom(
-        backgroundColor: isActive
-            ? color
-            : (isEnabled ? Colors.blue.shade50 : Colors.grey[200]),
-        foregroundColor: isActive ? Colors.white : (isEnabled ? Colors.blue : Colors.grey[600]),
+        backgroundColor: color,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        minimumSize: const Size(60, 30),
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-        ),
-      ),
+      child: Text(label, style: const TextStyle(fontSize: 12)),
     );
   }
 }

@@ -6,6 +6,9 @@ import 'services/firestore_service.dart';
 import 'services/auth_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/admin_dashboard.dart';
+import 'screens/splash_screen.dart';
+import 'widgets/app_theme.dart';
+import 'widgets/role_gate.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,8 +23,23 @@ void main() async {
   runApp(const AdminDashboardApp());
 }
 
-class AdminDashboardApp extends StatelessWidget {
+class AdminDashboardApp extends StatefulWidget {
   const AdminDashboardApp({super.key});
+
+  @override
+  State<AdminDashboardApp> createState() => _AdminDashboardAppState();
+}
+
+class _AdminDashboardAppState extends State<AdminDashboardApp> {
+  bool _showSplash = true;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) setState(() => _showSplash = false);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,20 +48,20 @@ class AdminDashboardApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthService()),
         ChangeNotifierProvider(create: (_) => FirestoreService()),
       ],
-      child: Consumer<AuthService>(
-        builder: (context, auth, _) {
-          return MaterialApp(
-            title: 'Admin Dashboard',
-            debugShowCheckedModeBanner: false,
-            theme: ThemeData(
-              primarySwatch: Colors.purple,
-              useMaterial3: true,
-            ),
-            home: auth.isAuthenticated
-                ? const AdminDashboard()
-                : const LoginScreen(destination: AdminDashboard()),
-          );
-        },
+      child: MaterialApp(
+        title: 'Admin Dashboard',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        home: _showSplash 
+            ? const SplashScreen() 
+            : Consumer<AuthService>(
+                builder: (context, auth, _) {
+                  return RoleGate(
+                    allowedRoles: const ['admin'],
+                    child: const AdminDashboard(),
+                  );
+                },
+              ),
       ),
     );
   }

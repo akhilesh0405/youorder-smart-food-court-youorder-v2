@@ -2,6 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
+  <base href="/">  <!-- 👈 ADD THIS LINE -->
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="Smart Food Court App">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -15,7 +16,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore-compat.js"></script>
   
   <script>
-    // 🔥 HARDCODED Firebase Config (NO env.js needed!)
     var firebaseConfig = {
       apiKey: "AIzaSyBf0Eg79nzFqzptL21WeU7IY4YsE6jlGco",
       authDomain: "smartfoodcourt-bbcaa.firebaseapp.com",
@@ -26,7 +26,6 @@
       measurementId: "G-MX2SS2D05Z"
     };
     
-    // Initialize Firebase
     firebase.initializeApp(firebaseConfig);
     console.log("✅ Firebase initialized in HTML!");
     console.log("✅ Project ID:", firebaseConfig.projectId);
