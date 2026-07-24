@@ -60,24 +60,22 @@ class _MyAppState extends State<MyApp> {
         title: 'YouOrder',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
-        home: _showSplash ? const SplashScreen() : null,
+        // 👇 Switch the widget INSIDE home, don't make home null
+        home: _showSplash 
+            ? const SplashScreen() 
+            : Consumer<AuthService>(
+                builder: (context, auth, _) {
+                  return const RoleGate(
+                    allowedRoles: ['customer'],
+                    child: HomeScreen(),
+                  );
+                },
+              ),
         onGenerateRoute: (settings) {
-          if (_showSplash) return null; // Don't route until splash is done
-
           String route = settings.name ?? '/';
           if (route.startsWith('/#')) route = route.substring(2);
           
           print("🔍 Route requested: $route");
-          
-          // --- CUSTOMER APP ---
-          if (route == '/' || route == '/home' || route.isEmpty) {
-            return MaterialPageRoute(
-              builder: (context) => const RoleGate(
-                allowedRoles: ['customer'],
-                child: HomeScreen(),
-              ),
-            );
-          }
           
           // --- ADMIN DASHBOARD ---
           if (route == '/admin') {
@@ -109,15 +107,11 @@ class _MyAppState extends State<MyApp> {
             );
           }
           
-          // FALLBACK
-          return MaterialPageRoute(
-            builder: (context) => const RoleGate(
-              allowedRoles: ['customer'],
-              child: HomeScreen(),
-            ),
-          );
+          // --- DEFAULT/FALLBACK ---
+          return null; // Let 'home' handle it
         },
       ),
     );
   }
 }
+

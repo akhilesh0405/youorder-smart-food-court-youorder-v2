@@ -1,36 +1,33 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <base href="/">
   <meta charset="UTF-8">
-  <base href="/">  <!-- 👈 ADD THIS LINE -->
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="Smart Food Court App">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Smart Food Court</title>
+  <meta name="description" content="YouOrder - Smart Food Court Ordering System">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="YouOrder">
+  <title>YouOrder</title>
   <link rel="manifest" href="manifest.json">
+  <script src="flutter.js" defer></script>
 </head>
 <body>
-  <!-- Load Firebase SDKs -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore-compat.js"></script>
-  
   <script>
-    var firebaseConfig = {
-      apiKey: "AIzaSyBf0Eg79nzFqzptL21WeU7IY4YsE6jlGco",
-      authDomain: "smartfoodcourt-bbcaa.firebaseapp.com",
-      projectId: "smartfoodcourt-bbcaa",
-      storageBucket: "smartfoodcourt-bbcaa.firebasestorage.app",
-      messagingSenderId: "919145093532",
-      appId: "1:919145093532:web:588d994bd334a3aef5d059",
-      measurementId: "G-MX2SS2D05Z"
-    };
-    
-    firebase.initializeApp(firebaseConfig);
-    console.log("✅ Firebase initialized in HTML!");
-    console.log("✅ Project ID:", firebaseConfig.projectId);
+    window.addEventListener('load', function(ev) {
+      _flutter.loader.loadEntrypoint({
+        serviceWorker: {
+          childMetadata: {
+            prefeteched: true,
+          },
+        },
+        onEntrypointLoaded: function(engineInitializer) {
+          engineInitializer.initializeEngine().then(function(appRunner) {
+            appRunner.runApp();
+          });
+        }
+      });
+    });
   </script>
-  
-  <script src="main.dart.js" type="application/javascript"></script>
 </body>
 </html>
